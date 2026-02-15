@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Large temporary files (keep datasets in data/raw and data/processed)
+*.zip
+*.tar.gz
+*.rar
+
+# Cache
+.cache/
+*.log
+
+# NOTE: data/raw/*.csv and data/processed/*.csv are ALLOWED (required datasets)
+# Exclude only if files are too large; adjust as needed:
+# data/raw/*.csv
+# data/processed/*.csv
