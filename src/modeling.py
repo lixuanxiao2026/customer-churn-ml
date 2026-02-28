@@ -10,6 +10,9 @@ from sklearn.model_selection import train_test_split, cross_val_score, GridSearc
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 import joblib
 
 
@@ -35,6 +38,18 @@ def get_models() -> dict:
         "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
         "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
         "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric="logloss", random_state=42),
+        "Neural_Network_MLP": Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", MLPClassifier(
+                hidden_layer_sizes=(32, 16),
+                activation="relu",
+                solver="adam",
+                alpha=1e-4,
+                learning_rate_init=1e-3,
+                max_iter=300,
+                random_state=42
+            ))
+        ]),
     }
 
 
