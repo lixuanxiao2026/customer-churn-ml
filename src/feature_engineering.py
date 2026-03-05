@@ -1,15 +1,12 @@
-"""
-Feature engineering module for customer churn pipeline.
-Feature creation, interaction features, aggregation logic, business-derived features.
-"""
 
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import joblib
 
-# Import preprocessing for pipeline consistency
-from .preprocessing import load_raw_data, validate_types, handle_missing_values, encode_categorical
+from .preprocessing import run_preprocessing_pipeline
 
 
 def create_total_minutes(df: pd.DataFrame) -> pd.DataFrame:
@@ -38,24 +35,34 @@ def create_calls_per_minute(df: pd.DataFrame) -> pd.DataFrame:
     call_cols = ["Total day calls", "Total eve calls", "Total night calls"]
     if all(c in df.columns for c in call_cols):
         total_calls = df[call_cols].sum(axis=1)
-        df["calls_per_minute"] = np.where(df["total_minutes"] > 0, total_calls / df["total_minutes"], 0)
+        df["calls_per_minute"] = np.where(
+            df["total_minutes"] > 0, total_calls / df["total_minutes"], 0
+        )
     return df
 
 
 def run_feature_engineering(
     input_path: str = "data/processed/churn_clean.csv",
-    output_path: str = "data/processed/churn_features.csv",
+    train_output_path: str = "data/processed/churn_train.csv",
+    test_output_path: str = "data/processed/churn_test.csv",
+    scaler_path: str = "models/scaler.pkl",
     use_raw_fallback: bool = True,
-) -> pd.DataFrame:
+    test_size: float = 0.2,
+    random_state: int = 42,
+) -> tuple:
     """
-    Full feature engineering: load cleaned data, create features, scale.
-    If churn_clean.csv missing and use_raw_fallback, runs preprocessing first.
+    Full feature engineering: load cleaned data, create features, split, then scale.
+
+    FIX (data leakage): Scaler is fit ONLY on X_train, then applied to both
+    X_train and X_test. The fitted scaler is saved to disk for reuse in evaluation.
+
+    Returns:
+        (X_train_scaled, X_test_scaled, y_train, y_test)
     """
     path = Path(input_path)
     if path.exists():
         df = pd.read_csv(path)
     elif use_raw_fallback:
-        from .preprocessing import run_preprocessing_pipeline
         run_preprocessing_pipeline(
             input_path="data/raw/churn-bigml-20_raw.csv",
             output_path="data/processed/churn_clean.csv",
@@ -68,6 +75,7 @@ def run_feature_engineering(
     if target not in df.columns:
         raise ValueError("Target 'Churn' not in DataFrame")
 
+    # Create business-derived features
     df = create_total_minutes(df)
     df = create_total_charge(df)
     df = create_calls_per_minute(df)
@@ -75,17 +83,40 @@ def run_feature_engineering(
     X = df.drop(columns=[target])
     y = df[target]
     numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()
-    X_numeric = X[numeric_cols]
+    X = X[numeric_cols]
 
+    # --- FIX: Split BEFORE scaling to prevent data leakage ---
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, stratify=y
+    )
+
+    # Fit scaler only on training data
     scaler = StandardScaler()
-    X_scaled = pd.DataFrame(scaler.fit_transform(X_numeric), columns=numeric_cols, index=X.index)
-    X_scaled[target] = y.values
+    X_train_scaled = pd.DataFrame(
+        scaler.fit_transform(X_train), columns=numeric_cols, index=X_train.index
+    )
+    X_test_scaled = pd.DataFrame(
+        scaler.transform(X_test), columns=numeric_cols, index=X_test.index
+    )
 
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    X_scaled.to_csv(output_path, index=False)
-    return X_scaled
+    # Save scaler and split datasets
+    Path(scaler_path).parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(scaler, scaler_path)
+
+    Path(train_output_path).parent.mkdir(parents=True, exist_ok=True)
+    train_out = X_train_scaled.copy()
+    train_out[target] = y_train.values
+    train_out.to_csv(train_output_path, index=False)
+
+    test_out = X_test_scaled.copy()
+    test_out[target] = y_test.values
+    test_out.to_csv(test_output_path, index=False)
+
+    print(f"Train saved: {train_output_path} | Test saved: {test_output_path}")
+    print(f"Scaler saved: {scaler_path}")
+    return X_train_scaled, X_test_scaled, y_train, y_test
 
 
 if __name__ == "__main__":
     run_feature_engineering()
-    print("Feature engineering complete. Output: data/processed/churn_features.csv")
+    print("Feature engineering complete.")
