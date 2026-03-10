@@ -16,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 
 
-def load_features(path: str = "data/processed/churn_features.csv") -> tuple:
+def load_features(path: str = "data/processed/churn_train.csv") -> tuple:
     """Load feature-engineered data. Returns (X, y)."""
     df = pd.read_csv(path)
     target = "Churn"
@@ -35,9 +35,13 @@ def train_test_split_data(X, y, test_size: float = 0.2, random_state: int = 42):
 def get_models() -> dict:
     """Return dict of model name -> model instance."""
     return {
-        "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
+        "Logistic Regression": LogisticRegression(
+            max_iter=1000, random_state=42, class_weight="balanced"
+        ),
         "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
-        "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric="logloss", random_state=42),
+        "XGBoost": XGBClassifier(
+            eval_metric="logloss", random_state=42
+        ),
         "Neural_Network_MLP": Pipeline([
             ("scaler", StandardScaler()),
             ("model", MLPClassifier(
@@ -89,17 +93,22 @@ def save_models(results: dict, output_dir: str = "models"):
 
 
 def run_modeling_pipeline(
-    features_path: str = "data/processed/churn_features.csv",
+    train_path: str = "data/processed/churn_train.csv",
     models_dir: str = "models",
 ) -> dict:
-    """Full modeling pipeline: load, split, train, save."""
-    X, y = load_features(features_path)
-    X_train, X_test, y_train, y_test = train_test_split_data(X, y)
+    """Full modeling pipeline: load train data, train, save."""
+    df = pd.read_csv(train_path)
+    target = "Churn"
+    X_train = df.drop(columns=[target])
+    y_train = df[target]
     results = train_models(X_train, y_train)
     save_models(results, models_dir)
     return results
 
 
 if __name__ == "__main__":
+    run_modeling_pipeline()
+    print("Modeling complete. Models saved to models/")
+
     run_modeling_pipeline()
     print("Modeling complete. Models saved to models/")
