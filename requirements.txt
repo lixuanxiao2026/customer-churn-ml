@@ -7,3 +7,4 @@ xgboost
 scipy
 joblib
 jupyter
+python-pptx
