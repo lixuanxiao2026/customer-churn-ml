@@ -10,7 +10,7 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 
-def load_raw_data(data_path: str = "data/raw/churn-bigml-20_raw.csv") -> pd.DataFrame:
+def load_raw_data(data_path: str = "data/raw/churn-bigml-80.csv") -> pd.DataFrame:
     """Load raw churn dataset."""
     path = Path(data_path)
     if not path.exists():
@@ -57,18 +57,21 @@ def handle_missing_values(df: pd.DataFrame, strategy: str = "median") -> pd.Data
 
 
 def encode_categorical(df: pd.DataFrame, target: str = "Churn") -> pd.DataFrame:
-    """Encode categorical columns. Binary Yes/No -> 0/1, State -> one-hot."""
+    """Encode categorical columns."""
     df = df.copy()
     if "International plan" in df.columns:
         df["International plan"] = (df["International plan"] == "Yes").astype(int)
     if "Voice mail plan" in df.columns:
         df["Voice mail plan"] = (df["Voice mail plan"] == "Yes").astype(int)
     if "State" in df.columns:
-        df = pd.get_dummies(df, columns=["State"], drop_first=True)
-    if target in df.columns and df[target].dtype == bool:
-        df[target] = df[target].astype(int)
+        df = df.drop(columns=["State"])  
+    if "Area code" in df.columns:
+        df = pd.get_dummies(df, columns=["Area code"], prefix="area", drop_first=True)
+    if target in df.columns:
+        df[target] = df[target].map(
+            {"True": 1, "False": 0, True: 1, False: 0}
+        ).fillna(df[target]).astype(int)
     return df
-
 
 def scale_features(df: pd.DataFrame, target: str = "Churn", fit: bool = True, scaler=None):
     """Scale numeric features. Returns (scaled_df, scaler)."""
@@ -91,9 +94,8 @@ def scale_features(df: pd.DataFrame, target: str = "Churn", fit: bool = True, sc
         X_out[target] = y.values
     return X_out, scaler
 
-
 def run_preprocessing_pipeline(
-    input_path: str = "data/raw/churn-bigml-20_raw.csv",
+    input_path: str = "data/raw/churn-bigml-80.csv",   # ← 改这里
     output_path: str = "data/processed/churn_clean.csv",
 ) -> pd.DataFrame:
     """Full preprocessing pipeline: load, validate, handle missing, encode."""
