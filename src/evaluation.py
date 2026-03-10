@@ -69,10 +69,9 @@ def model_comparison_table(models: dict, X_test, y_test) -> pd.DataFrame:
     cols = ["Model", "Accuracy", "Precision", "Recall", "F1", "AUC"]
     return df[[c for c in cols if c in df.columns]]
 
-
 def run_evaluation(
     models_dir: str = "models",
-    features_path: str = "data/processed/churn_features.csv",
+    test_path: str = "data/processed/churn_test.csv",   
     output_path: str = "reports/model_comparison_table.csv",
 ) -> pd.DataFrame:
     """Full evaluation: load models, load test data, compute metrics, save table."""
@@ -81,17 +80,16 @@ def run_evaluation(
         print("No models found. Run modeling pipeline first.")
         return pd.DataFrame()
 
-    df = pd.read_csv(features_path)
-    X = df.drop(columns=["Churn"])
-    y = df["Churn"]
-    from sklearn.model_selection import train_test_split
-    _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+    df = pd.read_csv(test_path)
+    X_test = df.drop(columns=["Churn"])
+    y_test = df["Churn"]
 
     table = model_comparison_table(models, X_test, y_test)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(output_path, index=False)
     print(f"Comparison table saved to {output_path}")
     return table
+    
 
 
 if __name__ == "__main__":
