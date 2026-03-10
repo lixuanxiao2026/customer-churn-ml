@@ -118,12 +118,13 @@ def run_feature_engineering(
 
 
     scaler = StandardScaler()
-    X_train_scaled = pd.DataFrame(
-        scaler.fit_transform(X_train), columns=numeric_cols, index=X_train.index
-    )
     X_test_scaled = pd.DataFrame(
         scaler.transform(X_test), columns=numeric_cols, index=X_test.index
     )
+    X_train_scaled = pd.DataFrame(
+        scaler.fit_transform(X_train), columns=numeric_cols, index=X_train.index
+    )
+
 
     # Save scaler and split datasets
     Path(scaler_path).parent.mkdir(parents=True, exist_ok=True)
