@@ -109,6 +109,3 @@ def run_modeling_pipeline(
 if __name__ == "__main__":
     run_modeling_pipeline()
     print("Modeling complete. Models saved to models/")
-
-    run_modeling_pipeline()
-    print("Modeling complete. Models saved to models/")
