@@ -79,26 +79,21 @@ def run_feature_engineering(
     df = create_total_charge(df)
     df = create_calls_per_minute(df)
 
-    # 业务特征：高客服呼叫（最强流失预测因子）
     df["high_service_calls"] = (df["Customer service calls"] >= 4).astype(int)
 
-    # 业务特征：有国际套餐但从不使用
     if "International plan" in df.columns and "Total intl minutes" in df.columns:
         df["intl_plan_no_usage"] = (
             (df["International plan"] == 1) & (df["Total intl minutes"] == 0)
         ).astype(int)
-        # 业务特征：无国际套餐但大量使用国际通话（意外高账单）
         df["intl_high_usage_no_plan"] = (
             (df["International plan"] == 0) & (df["Total intl minutes"] > 10)
         ).astype(int)
 
-    # 业务特征：有语音信箱套餐但0条消息
     if "Voice mail plan" in df.columns and "Number vmail messages" in df.columns:
         df["vmail_mismatch"] = (
             (df["Voice mail plan"] == 1) & (df["Number vmail messages"] == 0)
         ).astype(int)
 
-    # 删除高度相关特征（charge ≈ minutes，r>0.95，避免多重共线性）
     correlated_to_drop = [
         "Total day charge", "Total eve charge",
         "Total night charge", "Total intl charge"
@@ -110,12 +105,9 @@ def run_feature_engineering(
     numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()
     X = X[numeric_cols]
 
-    # Split BEFORE scaling（防止数据泄露）
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
-
-    # SMOTE：只对训练集做过采样，测试集保持真实分布
     try:
         from imblearn.over_sampling import SMOTE
         sm = SMOTE(random_state=random_state)
@@ -124,7 +116,7 @@ def run_feature_engineering(
     except ImportError:
         print("Warning: imbalanced-learn not installed, skipping SMOTE. Run: pip install imbalanced-learn")
 
-    # Fit scaler only on training data
+
     scaler = StandardScaler()
     X_train_scaled = pd.DataFrame(
         scaler.fit_transform(X_train), columns=numeric_cols, index=X_train.index
