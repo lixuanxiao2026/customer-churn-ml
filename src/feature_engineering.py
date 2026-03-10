@@ -110,7 +110,7 @@ def run_feature_engineering(
     )
 
 
-try:
+    try:
         from imblearn.over_sampling import SMOTE
         sm = SMOTE(random_state=random_state)
         X_train_scaled, y_train = sm.fit_resample(X_train_scaled, y_train)
