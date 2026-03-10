@@ -108,31 +108,25 @@ def run_feature_engineering(
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
-    try:
+
+
+try:
         from imblearn.over_sampling import SMOTE
         sm = SMOTE(random_state=random_state)
-        X_train, y_train = sm.fit_resample(X_train, y_train)
-        print(f"SMOTE applied — Train distribution: {dict(zip(*np.unique(y_train, return_counts=True)))}")
+        X_train_scaled, y_train = sm.fit_resample(X_train_scaled, y_train)
+        X_train_scaled = pd.DataFrame(X_train_scaled, columns=numeric_cols)
+        print(f"SMOTE applied — train distribution: {dict(zip(*np.unique(y_train, return_counts=True)))}")
     except ImportError:
-        print("Warning: imbalanced-learn not installed, skipping SMOTE. Run: pip install imbalanced-learn")
+        print("Warning: imbalanced-learn not installed, skipping SMOTE.")
+        print("Install with: pip install imbalanced-learn")
 
-
-    scaler = StandardScaler()
-    X_test_scaled = pd.DataFrame(
-        scaler.transform(X_test), columns=numeric_cols, index=X_test.index
-    )
-    X_train_scaled = pd.DataFrame(
-        scaler.fit_transform(X_train), columns=numeric_cols, index=X_train.index
-    )
-
-
-    # Save scaler and split datasets
+    # 7. Save outputs
     Path(scaler_path).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(scaler, scaler_path)
 
     Path(train_output_path).parent.mkdir(parents=True, exist_ok=True)
     train_out = X_train_scaled.copy()
-    train_out[target] = y_train.values
+    train_out[target] = y_train.values if hasattr(y_train, "values") else y_train
     train_out.to_csv(train_output_path, index=False)
 
     test_out = X_test_scaled.copy()
