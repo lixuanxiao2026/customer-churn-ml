@@ -95,7 +95,7 @@ def scale_features(df: pd.DataFrame, target: str = "Churn", fit: bool = True, sc
     return X_out, scaler
 
 def run_preprocessing_pipeline(
-    input_path: str = "data/raw/churn-bigml-80.csv",   # ← 改这里
+    input_path: str = "data/raw/churn-bigml-80.csv",  
     output_path: str = "data/processed/churn_clean.csv",
 ) -> pd.DataFrame:
     """Full preprocessing pipeline: load, validate, handle missing, encode."""
