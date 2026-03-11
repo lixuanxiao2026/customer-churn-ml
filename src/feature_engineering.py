@@ -1,4 +1,31 @@
+import pandas as pd
+import numpy as np
+from pathlib import Path
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import joblib
 
+try:
+    from .preprocessing import run_preprocessing_pipeline
+except ImportError:
+    from preprocessing import run_preprocessing_pipeline
+
+
+def create_total_minutes(df: pd.DataFrame) -> pd.DataFrame:
+    """Business-derived: total usage minutes across day/eve/night/intl."""
+    df = df.copy()
+    cols = [
+        "Total day minutes", "Total eve minutes",
+        "Total night minutes", "Total intl minutes",
+    ]
+    if all(c in df.columns for c in cols):
+        df["total_minutes"] = df[cols].sum(axis=1)
+    return df
+
+
+def create_total_charges(df: pd.DataFrame) -> pd.DataFrame:
+    """Business-derived: total charges across day/eve/night/intl."""
+    df = df.copy()
     cols = [
         "Total day charge", "Total eve charge",
         "Total night charge", "Total intl charge",
@@ -142,5 +169,3 @@ def run_feature_engineering(
 if __name__ == "__main__":
     run_feature_engineering()
     print("Feature engineering complete.")
-
-
