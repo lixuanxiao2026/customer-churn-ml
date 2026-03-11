@@ -10,7 +10,7 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 
-def load_raw_data(data_path: str = "data/raw/churn-bigml-80.csv") -> pd.DataFrame:
+def load_raw_data(data_path: str = "data/raw/churn-bigml-20.csv") -> pd.DataFrame:
     """Load raw churn dataset."""
     path = Path(data_path)
     if not path.exists():
@@ -95,7 +95,7 @@ def scale_features(df: pd.DataFrame, target: str = "Churn", fit: bool = True, sc
     return X_out, scaler
 
 def run_preprocessing_pipeline(
-    input_path: str = "data/raw/churn-bigml-80.csv",  
+    input_path: str = "data/raw/churn-bigml-20.csv",  
     output_path: str = "data/processed/churn_clean.csv",
 ) -> pd.DataFrame:
     """Full preprocessing pipeline: load, validate, handle missing, encode."""
