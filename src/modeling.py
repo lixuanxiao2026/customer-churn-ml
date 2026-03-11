@@ -36,7 +36,7 @@ def get_models() -> dict:
     """Return dict of model name -> model instance."""
     return {
         "Logistic Regression": LogisticRegression(
-            max_iter=1000, random_state=42, class_weight="balanced"
+            max_iter=1000, random_state=42, class_weight="balanced", penalty="l2", solver="lbfgs"
         ),
         "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
         "XGBoost": XGBClassifier(
