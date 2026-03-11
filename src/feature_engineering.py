@@ -1,53 +1,43 @@
 
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-import joblib
-
-try:
-    from .preprocessing import run_preprocessing_pipeline
-except ImportError:
-    from preprocessing import run_preprocessing_pipeline
-
-
-def create_total_minutes(df: pd.DataFrame) -> pd.DataFrame:
-    """Business-derived: total usage minutes across day/eve/night/intl."""
-    df = df.copy()
     cols = [
-        "Total day minutes", "Total eve minutes",
-        "Total night minutes", "Total intl minutes",
+        "Total day charge", "Total eve charge",
+        "Total night charge", "Total intl charge",
     ]
     if all(c in df.columns for c in cols):
-        df["total_minutes"] = df[cols].sum(axis=1)
+        df["total_charges"] = df[cols].sum(axis=1)
     return df
 
 
-def create_total_calls(df: pd.DataFrame) -> pd.DataFrame:
-    """Business-derived: total call count across all periods."""
+def create_high_service_calls(df: pd.DataFrame) -> pd.DataFrame:
+    """Binary flag: customer service calls >= 3."""
     df = df.copy()
-    cols = [
-        "Total day calls", "Total eve calls",
-        "Total night calls", "Total intl calls",
-    ]
-    if all(c in df.columns for c in cols):
-        df["total_calls"] = df[cols].sum(axis=1)
+    if "Customer service calls" in df.columns:
+        df["high_service_calls"] = (df["Customer service calls"] >= 3).astype(int)
     return df
 
 
-def create_calls_per_minute(df: pd.DataFrame) -> pd.DataFrame:
-    """Interaction: calls per minute (usage intensity)."""
+def create_intl_usage_ratio(df: pd.DataFrame) -> pd.DataFrame:
+    """Ratio: international minutes / total minutes."""
     df = df.copy()
     if "total_minutes" not in df.columns:
         df = create_total_minutes(df)
-    if "total_calls" not in df.columns:
-        df = create_total_calls(df)
-    df["calls_per_minute"] = np.where(
-        df["total_minutes"] > 0,
-        df["total_calls"] / df["total_minutes"],
-        0.0,
-    )
+    if "Total intl minutes" in df.columns:
+        df["intl_usage_ratio"] = (
+            df["Total intl minutes"] / df["total_minutes"]
+        ).fillna(0)
+    return df
+
+
+def create_account_length_group(df: pd.DataFrame) -> pd.DataFrame:
+    """Bin account length into new / mid / long groups, then one-hot encode."""
+    df = df.copy()
+    if "Account length" in df.columns:
+        df["account_length_group"] = pd.cut(
+            df["Account length"],
+            bins=[0, 50, 150, df["Account length"].max()],
+            labels=["new", "mid", "long"],
+        )
+        df = pd.get_dummies(df, columns=["account_length_group"], drop_first=True)
     return df
 
 
@@ -63,9 +53,15 @@ def run_feature_engineering(
     """
     Full feature engineering pipeline.
 
+    Features created:
+        - total_minutes             : sum of day/eve/night/intl minutes
+        - total_charges             : sum of day/eve/night/intl charges
+        - high_service_calls        : 1 if customer_service_calls >= 3
+        - intl_usage_ratio          : intl minutes / total minutes
+        - account_length_group_mid  : one-hot (account length 51-150)
+        - account_length_group_long : one-hot (account length > 150)
+
     Order: split → scale (fit on train only) → SMOTE (train only)
-    This order prevents both data leakage and the AttributeError caused
-    by SMOTE converting X_train to a numpy array before scaling.
 
     Returns:
         (X_train_scaled, X_test_scaled, y_train, y_test)
@@ -76,7 +72,7 @@ def run_feature_engineering(
         df = pd.read_csv(path)
     elif use_raw_fallback:
         run_preprocessing_pipeline(
-            input_path="data/raw/churn-bigml-80.csv",  # FIX: was missing _raw
+            input_path="data/raw/churn-bigml-80_raw.csv",
             output_path="data/processed/churn_clean.csv",
         )
         df = pd.read_csv("data/processed/churn_clean.csv")
@@ -89,34 +85,12 @@ def run_feature_engineering(
 
     # 2. Create features
     df = create_total_minutes(df)
-    df = create_total_calls(df)
-    df = create_calls_per_minute(df)
+    df = create_total_charges(df)
+    df = create_high_service_calls(df)
+    df = create_intl_usage_ratio(df)
+    df = create_account_length_group(df)
 
-    if "Customer service calls" in df.columns:
-        df["high_service_calls"] = (df["Customer service calls"] >= 4).astype(int)
-
-    if "International plan" in df.columns and "Total intl minutes" in df.columns:
-        df["intl_plan_no_usage"] = (
-            (df["International plan"] == 1) & (df["Total intl minutes"] == 0)
-        ).astype(int)
-        df["intl_high_usage_no_plan"] = (
-            (df["International plan"] == 0) & (df["Total intl minutes"] > 10)
-        ).astype(int)
-
-    if "Voice mail plan" in df.columns and "Number vmail messages" in df.columns:
-        df["vmail_mismatch"] = (
-            (df["Voice mail plan"] == 1) & (df["Number vmail messages"] == 0)
-        ).astype(int)
-
-    # 3. Drop multicollinear charge columns
-    # FIX: removed create_total_charge() — total_charge is just a linear
-    # combination of the charge cols we're about to drop anyway
-    charge_cols = [
-        "Total day charge", "Total eve charge",
-        "Total night charge", "Total intl charge",
-    ]
-    df = df.drop(columns=[c for c in charge_cols if c in df.columns])
-
+    # 3. Select only numeric columns for modelling
     X = df.drop(columns=[target])
     y = df[target]
     numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()
@@ -137,8 +111,6 @@ def run_feature_engineering(
     )
 
     # 6. SMOTE — after scaling, on train only
-    # FIX: SMOTE must come AFTER scaling because fit_resample returns a
-    # numpy array which has no .index, breaking the DataFrame constructor above
     try:
         from imblearn.over_sampling import SMOTE
         sm = SMOTE(random_state=random_state)
@@ -170,3 +142,5 @@ def run_feature_engineering(
 if __name__ == "__main__":
     run_feature_engineering()
     print("Feature engineering complete.")
+
+
