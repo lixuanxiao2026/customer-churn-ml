@@ -169,7 +169,6 @@ customer-churn-ml/
 │   └── utils.py
 ├── reports/
 ├── slides/
-├── dashboards/
+├── dashboard/
 ├── models/
-└── diagrams/
 ```
